@@ -263,8 +263,14 @@ struct kobj_type memreg_type = {
 #endif
 };
 
-static int memreg_mmap(struct file *file, struct kobject *kobj, struct bin_attribute *attr,
-		       struct vm_area_struct *vma)
+static int memreg_mmap(struct file *file, struct kobject *kobj,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)) || \
+	(RHEL_RELEASE_CODE && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(10, 1))
+	const struct bin_attribute *attr,
+#else
+	struct bin_attribute *attr,
+#endif
+	struct vm_area_struct *vma)
 {
 	struct aq_memreg *memreg = attr->private;
 	unsigned long requested = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
@@ -276,7 +282,7 @@ static int memreg_mmap(struct file *file, struct kobject *kobj, struct bin_attri
 #if defined(__arm__) || defined(__aarch64__)
 	// had issues with writes to descriptors/packets not being seen by HW for arm systems. this function seemed to fix this
 #ifdef pgprot_dmacoherent
-	vma->vm_page_pgprot = prot_dmacoherent(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_dmacoherent(vma->vm_page_prot);
 #else //!defined(pgprot_dmacoherent)
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	//vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);

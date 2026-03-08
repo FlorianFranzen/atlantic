@@ -74,4 +74,8 @@ static const struct genl_multicast_group aq_dash_groups[] = {
 	[AQ_DASH_EVENT_GROUP] = {.name = "aq_dash_event",},
 };
 
+/* Function prototypes */
+int aq_dash_nl_init(void);
+void aq_dash_nl_exit(void);
+
 #endif

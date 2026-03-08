@@ -65,6 +65,17 @@ static inline void timer_setup(struct timer_list *timer,
 #endif
 #endif
 
+/* For kernels >= 6.15 where del_timer* functions were renamed */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 0)
+#define del_timer timer_delete
+#define del_timer_sync timer_delete_sync
+#endif
+
+/* For kernels >= 6.16 where from_timer was renamed to timer_container_of */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 16, 0)
+#define from_timer timer_container_of
+#endif
+
 #ifndef SPEED_5000
 #define SPEED_5000 5000
 #endif
@@ -79,6 +90,15 @@ static inline struct sk_buff *napi_alloc_skb(struct napi_struct *napi,
 {
 	return netdev_alloc_skb_ip_align(napi->dev, length);
 }
+#endif
+
+
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 0, 19)) || \
+	(RHEL_RELEASE_CODE > RHEL_RELEASE_VERSION(9, 1)) || \
+	(RHEL_RELEASE_CODE == RHEL_RELEASE_VERSION(8, 8))
+#define aq_netif_napi_add(dev, napi, poll, weight) netif_napi_add(dev, napi, poll)
+#else
+#define aq_netif_napi_add(dev, napi, poll, weight) netif_napi_add(dev, napi, poll, weight)
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
@@ -177,6 +197,10 @@ static inline void ether_addr_copy(u8 *dst, const u8 *src)
 #define u64_stats_fetch_begin_irq u64_stats_fetch_begin_bh
 #define u64_stats_fetch_retry_irq u64_stats_fetch_retry_bh
 #endif
+#else
+#include <linux/u64_stats_sync.h>
+#define u64_stats_fetch_begin_irq u64_stats_fetch_begin
+#define u64_stats_fetch_retry_irq u64_stats_fetch_retry
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
@@ -284,8 +308,7 @@ u16 crc_itu_t(u16 crc, const u8 *buffer, size_t len);
 #define BIT_ULL(nr)		(1ULL << (nr))
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0) && \
-	RHEL_RELEASE_CODE <= RHEL_RELEASE_VERSION(8, 6)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)
 #define platform_get_ethdev_address(dev, netdev) (-1)
 #endif
 

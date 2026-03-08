@@ -301,6 +301,45 @@ static void aq_ndev_set_multicast_settings(struct net_device *ndev)
 }
 
 #if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)
+static int aq_ndev_hwtstamp_set(struct net_device *netdev,
+				struct kernel_hwtstamp_config *config,
+				struct netlink_ext_ack *extack)
+{
+	struct aq_nic_s *aq_nic = netdev_priv(netdev);
+
+	if (!IS_REACHABLE(CONFIG_PTP_1588_CLOCK) || !aq_nic->aq_ptp)
+		return -EOPNOTSUPP;
+
+	switch (config->tx_type) {
+	case HWTSTAMP_TX_OFF:
+	case HWTSTAMP_TX_ON:
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	switch (config->rx_filter) {
+	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
+		break;
+	case HWTSTAMP_FILTER_PTP_V2_EVENT:
+	case HWTSTAMP_FILTER_NONE:
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	return aq_ptp_hwtstamp_config_set(aq_nic->aq_ptp, config);
+}
+#else
 static int aq_ndev_config_hwtstamp(struct aq_nic_s *aq_nic,
 				   struct hwtstamp_config *config)
 {
@@ -319,7 +358,7 @@ static int aq_ndev_config_hwtstamp(struct aq_nic_s *aq_nic,
 
 	return aq_ptp_hwtstamp_config_set(aq_nic->aq_ptp, config);
 }
-#endif
+
 
 static int aq_ndev_hwtstamp_set(struct aq_nic_s *aq_nic, struct ifreq *ifr)
 {
@@ -342,8 +381,23 @@ static int aq_ndev_hwtstamp_set(struct aq_nic_s *aq_nic, struct ifreq *ifr)
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
 	       -EFAULT : 0;
 }
+#endif
+#endif
 
 #if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)
+static int aq_ndev_hwtstamp_get(struct net_device *netdev,
+				struct kernel_hwtstamp_config *config)
+{
+	struct aq_nic_s *aq_nic = netdev_priv(netdev);
+
+	if (!aq_nic->aq_ptp)
+		return -EOPNOTSUPP;
+
+	aq_ptp_hwtstamp_config_get(aq_nic->aq_ptp, config);
+	return 0;
+}
+#else
 static int aq_ndev_hwtstamp_get(struct aq_nic_s *aq_nic, struct ifreq *ifr)
 {
 	struct hwtstamp_config config;
@@ -356,6 +410,7 @@ static int aq_ndev_hwtstamp_get(struct aq_nic_s *aq_nic, struct ifreq *ifr)
 	       -EFAULT : 0;
 }
 #endif
+#endif
 
 static int aq_ndev_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 {
@@ -366,14 +421,15 @@ static int aq_ndev_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	pm_runtime_get_sync(&aq_nic->pdev->dev);
 
 	switch (cmd) {
+#if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0)
 	case SIOCSHWTSTAMP:
 		res = aq_ndev_hwtstamp_set(aq_nic, ifr);
 		break;
-
-#if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
 	case SIOCGHWTSTAMP:
 		res = aq_ndev_hwtstamp_get(aq_nic, ifr);
 		break;
+#endif
 #ifdef TSN_SUPPORT
 	case SIOCINITTSN:
 		res = aq_tsn_init(aq_nic, ifr);
@@ -583,7 +639,6 @@ static const struct net_device_ops aq_ndev_ops = {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)
 	.ndo_set_features = aq_ndev_set_features,
 #endif
-	.ndo_do_ioctl = aq_ndev_ioctl,
 	.ndo_vlan_rx_add_vid = aq_ndo_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = aq_ndo_vlan_rx_kill_vid,
 #if (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7, 5) && \
@@ -591,6 +646,16 @@ static const struct net_device_ops aq_ndev_ops = {
 	.extended.ndo_setup_tc_rh = aq_ndo_setup_tc,
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
 	.ndo_setup_tc = aq_ndo_setup_tc,
+#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)
+	.ndo_hwtstamp_set = aq_ndev_hwtstamp_set,
+	.ndo_hwtstamp_get = aq_ndev_hwtstamp_get,
+#else
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
+	.ndo_eth_ioctl = aq_ndev_ioctl,
+#else
+	.ndo_do_ioctl = aq_ndev_ioctl,
+#endif
 #endif
 };
 

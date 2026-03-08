@@ -144,7 +144,11 @@ struct ptp_tm_offset {
 
 struct aq_ptp_s {
 	struct aq_nic_s *aq_nic;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)
+	struct kernel_hwtstamp_config hwtstamp_config;
+#else
 	struct hwtstamp_config hwtstamp_config;
+#endif
 	spinlock_t ptp_lock;
 	spinlock_t ptp_ring_lock;
 	struct ptp_clock *ptp_clock;
@@ -531,7 +535,7 @@ static bool aq_ptp_event_ts_updated(struct aq_ptp_s *aq_ptp, u32 clk_sel,
 	return false;
 }
 
-bool aq_ptp_ts_valid(struct aq_ptp_pid *aq_pid, u64 diff)
+static bool aq_ptp_ts_valid(struct aq_ptp_pid *aq_pid, u64 diff)
 {
 	/* check we get valid TS, let's use simple check: if difference of
 	 * ts_diff and expected period more than half of expected period it
@@ -1076,9 +1080,12 @@ void aq_ptp_tx_hwtstamp(struct aq_nic_s *aq_nic, u64 timestamp)
 		return;
 	}
 
-	timestamp += atomic_read(&aq_ptp->offset_egress);
-	aq_ptp_convert_to_hwtstamp(aq_ptp, &hwtstamp, timestamp);
-	skb_tstamp_tx(skb, &hwtstamp);
+	if ((skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
+		timestamp += atomic_read(&aq_ptp->offset_egress);
+		aq_ptp_convert_to_hwtstamp(aq_ptp, &hwtstamp, timestamp);
+		skb_tstamp_tx(skb, &hwtstamp);
+	}
+
 	dev_kfree_skb_any(skb);
 
 	aq_ptp_tx_timeout_update(aq_ptp);
@@ -1293,8 +1300,13 @@ static void aq_ptp_rx_hwtstamp(struct aq_ptp_s *aq_ptp, struct sk_buff *skb,
 	aq_ptp_convert_to_hwtstamp(aq_ptp, skb_hwtstamps(skb), timestamp);
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)
+void aq_ptp_hwtstamp_config_get(struct aq_ptp_s *aq_ptp,
+				struct kernel_hwtstamp_config *config)
+#else
 void aq_ptp_hwtstamp_config_get(struct aq_ptp_s *aq_ptp,
 				struct hwtstamp_config *config)
+#endif
 {
 	*config = aq_ptp->hwtstamp_config;
 }
@@ -1332,8 +1344,13 @@ static int aq_ptp_parse_rx_filters(enum hwtstamp_rx_filters rx_filter)
 	return ptp_en_flags;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)
+int aq_ptp_hwtstamp_config_set(struct aq_ptp_s *aq_ptp,
+			       struct kernel_hwtstamp_config *config)
+#else
 int aq_ptp_hwtstamp_config_set(struct aq_ptp_s *aq_ptp,
 			       struct hwtstamp_config *config)
+#endif
 {
 	struct aq_nic_s *aq_nic = aq_ptp->aq_nic;
 	int err = 0;
@@ -2127,7 +2144,7 @@ int aq_ptp_init(struct aq_nic_s *aq_nic, unsigned int idx_ptp_vec, unsigned int 
 	atomic_set(&aq_ptp->offset_egress, 0);
 	atomic_set(&aq_ptp->offset_ingress, 0);
 
-	netif_napi_add(aq_nic_get_ndev(aq_nic), &aq_ptp->napi,
+	aq_netif_napi_add(aq_nic_get_ndev(aq_nic), &aq_ptp->napi,
 		       aq_ptp_poll, AQ_CFG_NAPI_WEIGHT);
 
 	aq_ptp->idx_ptp_vector = idx_ptp_vec;

@@ -1,5 +1,5 @@
-Linux* aQuantia AQtion Driver for the aQuantia Multi-Gigabit PCI Express Family
-of Ethernet Adapters
+Linux* Marvell AQtion Driver for the Marvell Multi-gigabit PCI Express Family
+of Ethernet Controllers
 =============================================================================
 
 Contents
@@ -11,7 +11,7 @@ Contents
 - Building and Installation
 - Command Line Parameters
 - Additional Configurations
-- Antigua Flashless boot support
+- Antigua Flashless boot support for Linux
 - Uninstall
 - Support
 
@@ -31,8 +31,8 @@ low throughput or even a kernel panic.
 In This Release
 ===============
 
-This file describes the aQuantia AQtion Driver for the aQuantia Multi-Gigabit
-PCI Express Family of Ethernet Adapters.
+This file describes the Marvell AQtion Driver for the Marvell Multi-gigabit
+PCI Express Family of Ethernet Controllers.
 This driver supports Linux kernels >= 3.10, and includes support for x86_64 and
 ARM Linux system.
 
@@ -41,21 +41,24 @@ This release contains a source tarball and (optionally) a src.rpm package.
 Identifying Your Adapter
 ========================
 
-The driver in this release is compatible with ethernet adapters based on:
+The driver in this release is compatible with ethernet Controllers based on:
  - AQC-100,
  - AQC-107,
  - AQC-108,
- - AQC-109,
- - AQC-111,
- - AQC-112,
- - AQC-113.
+ - AQC-113, AQC113C, AQC113CS, AQC114, AQC114CS, AQC115C.
 
 
-SFP+ Devices (for AQC-100 based adapters)
+SFP+ Devices (for AQC-100 based Controllers)
 ----------------------------------
 
 This release was verified to work with passive Direct Attach Cables (DAC) and
 SFP+/LC Optical Transceiver.
+
+DASH Support with AQC-107
+-------------------------
+To Enable DASH support in RHEL 8.8, RHEL 9.1, RHEL 8.8, Rocky Linux 8.8, Rocky Linux 9.1, Rocky Linux 9.2, Ubuntu 22.04.02 LTS;
+user needs to update initramfs in order to integrate/update driver provided in OS distribution.
+
 
 Building and Installation
 =========================
@@ -68,20 +71,35 @@ To manually build this driver:
 
 	sudo apt install linux-headers build-essential
 
+   Note:
+   If your kernel version is 6.8 or higher, we recommend installing GCC 12 and using it for compilation.
+
+   To install GCC 12:
+
+   sudo apt install gcc-12
+
+   You can set GCC 12 in one of the following ways:
+
+   - Temporary for the current shell:
+      export CC=gcc-12
+
+   - Permanent (system-wide):
+      sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 120
+      sudo update-alternatives --config gcc
+
 2. Move the base driver tar file to the directory of your choice.
-   For example, use /home/username/aquantia.
+   For example, use /home/username/marvell.
    Untar/unzip archive:
 
-	cd ~/aquantia
-	tar zxf Aquantia-AQtion-x.y.z.tar.gz
+	cd ~/marvell
+	tar zxf atlantic.gz
 
 3. Change to the driver src directory:
 
-	cd Aquantia-AQtion-x.y.z/
+	cd atlantic-x.y.z/
 
-NB! Make sure that pathname doesn't contain whitespaces and special characters
-    (e.g. brackets), because kernel build system doesn't support such paths
-    unfortunately and the build will fail.
+NB! Make sure that pathname doesn't contain whitespaces and special characters(e.g. brackets),
+   because kernel build system doesn't support such paths the build will fail.
 
 4. Compile the driver module:
 	make
@@ -97,7 +115,7 @@ NB! Make sure that pathname doesn't contain whitespaces and special characters
 
 driver will be installed into the following location:
 
-	/lib/modules/`uname -r`/aquantia/atlantic.ko
+	/lib/modules/`uname -r`/marvell/atlantic.ko
 
 NB! You might need to update initramfs image uponon install
 (e.g. if atlantic.ko is a part of it, otherwise an old version will be
@@ -120,15 +138,15 @@ Alternatively build and install the driver with dkms
 	sudo yum install kernel-devel-`uname -r` gcc gcc-c++ make gawk dkms
 
 2. Move the base driver tar file to the directory of your choice.
-   For example, use /home/username/aquantia.
+   For example, use /home/username/marvell.
    Untar/unzip archive:
 
-	cd ~/aquantia
-	tar zxf Aquantia-AQtion-x.y.z.tar.gz
+	cd ~/marvell
+	tar zxf atlantic.tar.gz
 
 3. Change to the driver source directory:
 
-	cd Aquantia-AQtion-x.y.z/
+	cd Linux/
 
 4. Build and install the driver:
 
@@ -146,16 +164,16 @@ Install the driver on Debian\Ubuntu using atlantic-x.y.z.deb
 	sudo apt-get install linux-headers-`uname -r`
 
 2. Move the atlantic-x.y.z.deb file to the directory of your choice.
-   For example, use /home/username/aquantia.
+   For example, use /home/username/marvell.
 
 3. Execute the following commands:
-	cd /home/username/aquantia
+	cd /home/username/marvell
 	sudo apt-get install ./atlantic-x.y.z.deb
 
 You can use "dpkg -l | grep -i atlantic" to verify that the driver has been
 installed.
 
-Alternatively you can use atlantic-x.y.z.noarch.rpm
+Install the driver on RedHat/CentOS/Rocky Linux distributions using atlantic-x.y.z.noarch.rpm
 ------------------------------------------------------------
 1. Make sure you have all the packages required to build a standalone kernel
    module.
@@ -163,10 +181,10 @@ Alternatively you can use atlantic-x.y.z.noarch.rpm
 	sudo yum install kernel-devel-`uname -r`
 
 2. Move the atlantic-x.y.z.noarch.rpm file to the directory of your choice.
-   For example, use /home/username/aquantia.
+   For example, use /home/username/marvell.
 
 3. Execute the following commands:
-	cd /home/username/aquantia
+	cd /home/username/marvell
 	sudo yum install ./atlantic-x.y.z.noarch.rpm
 
 You can use "rpm -qa | grep -i atlantic" to verify that the driver has been
@@ -232,7 +250,7 @@ NOTE: This setting is not saved across reboots.
 
 Jumbo Frames
 ------------
-This driver supports Jumbo Frames for all adapters. Jumbo Frames support is
+This driver supports Jumbo Frames for all Controllers. Jumbo Frames support is
 enabled by changing the MTU to a value larger than the default (1500).
 The maximum value for the MTU is 16000.
 Use the `ip` command to increase the MTU size. For example:
@@ -295,7 +313,7 @@ Note: AQrate speeds (2.5/5 Gb/s) will be displayed only on
 
 Note: AQC FW provides only information on actual negotiated pause frame usage.
    Link partner pause settings are not directly available.
-   Thus, `Advertised pause frame use` actually shows negotiated settings.
+   Thus, `Advertised pause frame use` shows negotiated settings.
    To see the real advertised settings, use `ethtool -a eth0`.
 
 Viewing adapter information
@@ -604,7 +622,7 @@ Self test can be initiated using the following command:
 `online` mode will not run TDR diagnostics and will only return SNR data.
 `offline` mode will also run TDR diagnostics, which causes temporary link drop.
 
-Result values are coded as descibed below:
+Result values are coded as described below:
 
     TDR status values:
 
@@ -732,7 +750,7 @@ AQ_CFG_UDP_RSS_DISABLE
 ------------------------------------------------------------
 Disable RSS for UDP traffic
 
-Turning on workaround of HW bug by routing all UDP pakets through queue 0.
+Turning on workaround of HW bug by routing all UDP packets through queue 0.
 
 Valid values
 0 - disabled
@@ -774,7 +792,7 @@ Run the following command:
 	make uninstall
 or:
 	sudo rmmod atlantic
-	sudo rm -f /lib/modules/`uname -r`/aquantia/atlantic.ko
+	sudo rm -f /lib/modules/`uname -r`/marvell/atlantic.ko
 	depmod -a `uname -r`
 
 NB! You might need to update initramfs image on uninstall
@@ -807,14 +825,14 @@ Support
 
 If an issue is identified with the released source code on the supported
 kernel with a supported adapter, email the specific information related
-to the issue to support@aquantia.com
+to the issue to support@marvell.com
 
 License
 =======
 
 Atlantic Network Driver
-Copyright (C) 2014-2019 aQuantia Corporation
-Copyright (C) 2019-2020 Marvell International Ltd.
+Copyright (C) 2014-2019 Marvell Corporation
+Copyright (C) 2019-2025 Marvell International Ltd.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms and conditions of the GNU General Public License,

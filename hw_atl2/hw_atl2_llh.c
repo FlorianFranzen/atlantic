@@ -609,7 +609,8 @@ void hw_atl2_tps_tx_pkt_shed_tc_data_weight_set(struct aq_hw_s *aq_hw,
 			    weight);
 }
 
-void _hw_atl2_tsg_ptp_gpio_en_pulse(struct aq_hw_s *aq_hw, u32 clk_sel, bool en)
+static void __maybe_unused
+_hw_atl2_tsg_ptp_gpio_en_pulse(struct aq_hw_s *aq_hw, u32 clk_sel, bool en)
 {
 	/* Enable GPIO and set "GTorEQ" mode */
 	u32 val = en ? (2 << HW_ATL2_TSG0_CLOCKEVENTOUTPUTMODE_SHIFT) | 1 : 0;
@@ -626,7 +627,7 @@ void _hw_atl2_tsg_ptp_gpio_en_pulse(struct aq_hw_s *aq_hw, u32 clk_sel, bool en)
 		val);
 }
 
-void _hw_atl2_tsg_ptp_gpio_ts(struct aq_hw_s *aq_hw, u32 clk_sel, u64 ts)
+static void __maybe_unused _hw_atl2_tsg_ptp_gpio_ts(struct aq_hw_s *aq_hw, u32 clk_sel, u64 ts)
 {
 	aq_hw_write_reg(aq_hw, clk_sel == 1 ?
 			HW_ATL2_MODIFY_TSG1_NS_COUNTER_VAL0_ADR :
