@@ -449,6 +449,10 @@ error_exit:
 		RHEL_RELEASE_CODE < RHEL_RELEASE_VERSION(7, 2)
 static int aq_dash_pre_doit(struct genl_ops *ops, struct sk_buff *skb,
 			      struct genl_info *info)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)
+/* Linux 6.3+: genl_family.pre_doit uses genl_split_ops */
+static int aq_dash_pre_doit(const struct genl_split_ops *ops, struct sk_buff *skb,
+			      struct genl_info *info)
 #else
 static int aq_dash_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
 			      struct genl_info *info)

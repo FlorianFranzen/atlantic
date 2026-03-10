@@ -297,4 +297,56 @@ static inline void eth_hw_addr_set(struct net_device *dev, const u8 *addr)
 }
 #endif
 
+/* Linux 6.1+: netif_napi_add() dropped the weight parameter.
+ * aq_compat.h already includes <linux/netdevice.h>, so the 3-arg
+ * function is declared before this macro is defined. */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+#define netif_napi_add(dev, napi, poll, weight) \
+	netif_napi_add((dev), (napi), (poll))
+#endif
+
+/* Linux 6.1+: u64_stats_fetch_{begin,retry}_irq() renamed */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+#define u64_stats_fetch_begin_irq u64_stats_fetch_begin
+#define u64_stats_fetch_retry_irq u64_stats_fetch_retry
+#endif
+
+/* Linux 6.8+: strlcpy() removed, replaced by strscpy() */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
+#define strlcpy(dst, src, len) strscpy(dst, src, len)
+#endif
+
+/* Linux 6.9+: ethtool_keee uses linkmode bitmap fields */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 9, 0)
+#include <linux/linkmode.h>
+#endif
+
+/* Linux 6.9+: PCI_IRQ_LEGACY renamed to PCI_IRQ_INTX */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 9, 0)
+#define PCI_IRQ_LEGACY (1 << 0)
+#endif
+
+/* Linux 6.10+: get_ts_info callback uses kernel_ethtool_ts_info */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
+#define ethtool_ts_info kernel_ethtool_ts_info
+#endif
+
+/* Linux 6.15+: from_timer() removed, replaced by timer_container_of() */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 0)
+#define from_timer(var, callback_timer, timer_fieldname) \
+	timer_container_of(var, callback_timer, timer_fieldname)
+#endif
+
+/* Linux 6.15+: del_timer_sync() removed, replaced by timer_delete_sync() */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 0)
+#define del_timer_sync(timer) timer_delete_sync(timer)
+#endif
+
+/* Linux 6.1+: macsec_context.prepare field removed (two-phase commit eliminated) */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+#define AQ_MACSEC_CTX_PREPARE(ctx) (false)
+#else
+#define AQ_MACSEC_CTX_PREPARE(ctx) ((ctx)->prepare)
+#endif
+
 #endif /* AQ_COMPAT_H */

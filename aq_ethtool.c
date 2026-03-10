@@ -604,8 +604,8 @@ static u32 aq_ethtool_get_rss_key_size(struct net_device *ndev)
 	return sizeof(cfg->aq_rss.hash_secret_key);
 }
 
-static int aq_ethtool_get_rss(struct net_device *ndev, u32 *indir, u8 *key,
-			      u8 *hfunc)
+static int _aq_ethtool_get_rss(struct net_device *ndev, u32 *indir, u8 *key,
+			       u8 *hfunc)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 	struct aq_nic_cfg_s *cfg;
@@ -626,8 +626,8 @@ static int aq_ethtool_get_rss(struct net_device *ndev, u32 *indir, u8 *key,
 	return 0;
 }
 
-static int aq_ethtool_set_rss(struct net_device *netdev, const u32 *indir,
-			      const u8 *key, const u8 hfunc)
+static int _aq_ethtool_set_rss(struct net_device *netdev, const u32 *indir,
+			       const u8 *key, const u8 hfunc)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(netdev);
 	struct aq_nic_cfg_s *cfg;
@@ -660,6 +660,34 @@ static int aq_ethtool_set_rss(struct net_device *netdev, const u32 *indir,
 
 	return err;
 }
+
+/* Linux 6.8+: get_rxfh/set_rxfh callbacks use struct ethtool_rxfh_param */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
+static int aq_ethtool_get_rss(struct net_device *ndev,
+			      struct ethtool_rxfh_param *rxfh)
+{
+	return _aq_ethtool_get_rss(ndev, rxfh->indir, rxfh->key, &rxfh->hfunc);
+}
+
+static int aq_ethtool_set_rss(struct net_device *netdev,
+			      struct ethtool_rxfh_param *rxfh,
+			      struct netlink_ext_ack *extack)
+{
+	return _aq_ethtool_set_rss(netdev, rxfh->indir, rxfh->key, rxfh->hfunc);
+}
+#else
+static int aq_ethtool_get_rss(struct net_device *ndev, u32 *indir, u8 *key,
+			      u8 *hfunc)
+{
+	return _aq_ethtool_get_rss(ndev, indir, key, hfunc);
+}
+
+static int aq_ethtool_set_rss(struct net_device *netdev, const u32 *indir,
+			      const u8 *key, const u8 hfunc)
+{
+	return _aq_ethtool_set_rss(netdev, indir, key, hfunc);
+}
+#endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0)
 static int aq_ethtool_get_rss_legacy(struct net_device *ndev, u32 *indir, u8 *key)
@@ -913,7 +941,11 @@ static u32 eee_mask_to_ethtool_mask(u32 speed)
 	return rate;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 9, 0)
+static int aq_ethtool_get_eee(struct net_device *ndev, struct ethtool_keee *eee)
+#else
 static int aq_ethtool_get_eee(struct net_device *ndev, struct ethtool_eee *eee)
+#endif
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 	u32 rate, supported_rates;
@@ -929,6 +961,18 @@ static int aq_ethtool_get_eee(struct net_device *ndev, struct ethtool_eee *eee)
 	if (err < 0)
 		return err;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 9, 0)
+	ethtool_convert_legacy_u32_to_link_mode(eee->supported,
+						eee_mask_to_ethtool_mask(supported_rates));
+
+	if (aq_nic->aq_nic_cfg.eee_speeds)
+		linkmode_copy(eee->advertised, eee->supported);
+
+	ethtool_convert_legacy_u32_to_link_mode(eee->lp_advertised,
+						eee_mask_to_ethtool_mask(rate));
+
+	eee->eee_enabled = !linkmode_empty(eee->advertised);
+#else
 	eee->supported = eee_mask_to_ethtool_mask(supported_rates);
 
 	if (aq_nic->aq_nic_cfg.eee_speeds)
@@ -937,6 +981,7 @@ static int aq_ethtool_get_eee(struct net_device *ndev, struct ethtool_eee *eee)
 	eee->lp_advertised = eee_mask_to_ethtool_mask(rate);
 
 	eee->eee_enabled = !!eee->advertised;
+#endif
 
 	eee->tx_lpi_enabled = eee->eee_enabled;
 	if ((supported_rates & rate) & AQ_NIC_RATE_EEE_MSK)
@@ -945,7 +990,11 @@ static int aq_ethtool_get_eee(struct net_device *ndev, struct ethtool_eee *eee)
 	return 0;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 9, 0)
+static int aq_ethtool_set_eee(struct net_device *ndev, struct ethtool_keee *eee)
+#else
 static int aq_ethtool_set_eee(struct net_device *ndev, struct ethtool_eee *eee)
+#endif
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 	u32 rate, supported_rates;

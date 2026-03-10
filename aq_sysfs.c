@@ -263,7 +263,12 @@ struct kobj_type memreg_type = {
 #endif
 };
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
+static int memreg_mmap(struct file *file, struct kobject *kobj,
+		       const struct bin_attribute *attr,
+#else
 static int memreg_mmap(struct file *file, struct kobject *kobj, struct bin_attribute *attr,
+#endif
 		       struct vm_area_struct *vma)
 {
 	struct aq_memreg *memreg = attr->private;
